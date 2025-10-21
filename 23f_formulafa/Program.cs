@@ -12,6 +12,10 @@ namespace _23f_formulafa
 		{
 			List<Formula> gyerekei;
 			char művelet; // nem csak ∧ ∨ ¬ → ↔, de a p, q, r, ... is művelet lesz!
+
+
+
+
 			public Formula(char művelet)
 			{
 				this.művelet = művelet;
@@ -46,6 +50,107 @@ namespace _23f_formulafa
 						throw new NotImplementedException();
 				}
 			}  
+
+			int Mélység()
+			{
+				int max = -1;
+				foreach (Formula gyerek in gyerekei)
+				{
+					int m = gyerek.Mélység();
+					if (max<m)
+					{
+						max = m; 
+					}
+				}
+				return max + 1;
+			}
+
+			HashSet<Formula> Atomi_formulai()
+			{
+				HashSet<Formula> atoms = new HashSet<Formula>();
+
+				if (gyerekei.Count == 0)
+				{
+					atoms.Add(this);
+					return atoms;
+				}
+
+				foreach (Formula gyerek in gyerekei)
+				{
+					atoms.UnionWith(gyerek.Atomi_formulai());
+				}
+
+				return atoms;
+			}
+
+			/// <summary>
+			/// Megmondja, hogy a megadott műveletből hányat tartalmaz a formula.
+			/// </summary>
+			/// <param name="operátor"></param>
+			/// <returns></returns>
+			public int Műveletek_száma(char operátor)
+			{
+				if (gyerekei.Count == 0)
+					return 0;
+
+				int sum = 0;
+				foreach (Formula gyerek in gyerekei)
+				{
+					sum += gyerek.Műveletek_száma(operátor);
+				}
+
+				if (művelet == operátor)
+				{
+					return 1 + sum;
+				}
+								
+				return sum;
+			}
+
+			/// <summary>
+			/// Visszaadja, hogy hányszor tagadták benne a megadott műveletet. Például
+			/// Tagadott('&') azt adja vissza, hogy hányszor volt konjunkció tagadva benne.
+			/// Tagadott('V') azt adja vissza, hogy hányszor volt diszjunkció tagadva benne.
+			/// </summary>
+			/// <param name="operátor"></param>
+			/// <returns></returns>
+			//int Tagadott(char muvelet)
+			//{
+
+			//}
+
+			/// <summary>
+			/// Elkészíti a formula kettős tagadások nélküli verzióját.
+			/// </summary>
+			/// <returns></returns>
+			//Formula Kettostagadasok_nelkul()
+			//{
+
+			//}
+
+			/// <summary>
+			/// Diszjunktív normálformára hoz, azaz megadja azt az ekvivalens átalakítását, amiben csak V műveletek és literálok vannak. 
+			/// </summary>
+			/// <param name="operátor"></param>
+			/// <returns></returns>
+			//Formula Diszjunktív_normálforma()
+			//{
+
+			//}
+
+			/// <summary>
+			/// Konjunktív normálformára hoz.
+			/// </summary>
+			/// <param name="operátor"></param>
+			/// <returns></returns>
+			//Formula Konjunktív_normálforma()
+			//{
+
+			//}
+
+
+
+
 		}
 
 		static void Main(string[] args)
@@ -56,6 +161,14 @@ namespace _23f_formulafa
 			Formula A = ((p * q) + -p) > q;
 
 			Console.WriteLine(A);
+
+			Formula r = new Formula('r');
+			
+			//rajzunk:
+			Formula B = -(-p > (q * r))+p;
+
+			Console.WriteLine(B.Műveletek_száma('¬'));
+
 
 		}
 	}
