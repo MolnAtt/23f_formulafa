@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Schema;
 
 namespace _23f_formulafa
 {
@@ -10,8 +11,8 @@ namespace _23f_formulafa
 	{
 		class Formula
 		{
-			List<Formula> gyerekei;
-			char művelet; // nem csak ∧ ∨ ¬ → ↔, de a p, q, r, ... is művelet lesz!
+			public List<Formula> gyerekei;
+			public char művelet; // nem csak ∧ ∨ ¬ → ↔, de a p, q, r, ... is művelet lesz!
 
 
 
@@ -107,6 +108,27 @@ namespace _23f_formulafa
 				return sum;
 			}
 
+			public bool Atomi() => this.gyerekei.Count == 0;
+
+			public Formula NemÉs()
+			{
+				if (this.Atomi())
+					return this;
+				if (this.művelet == '¬')
+					return -this.gyerekei[0].NemÉs();
+				if (this.művelet == '&')
+					return this.gyerekei[0].NemÉs() * this.gyerekei[1].NemÉs();
+				if (this.művelet == 'V')
+					return -(-this.gyerekei[0].NemÉs() * -this.gyerekei[1].NemÉs());
+				if (this.művelet == '→')
+					return -(this.gyerekei[0].NemÉs() * -this.gyerekei[1].NemÉs());
+				if (this.művelet == '↔')
+					return this.gyerekei[0].NemÉs() > this.gyerekei[1].NemÉs() * this.gyerekei[1].NemÉs() > this.gyerekei[0].NemÉs();
+				if (this.művelet == '⨂')
+					return -(this.gyerekei[0].NemÉs() == this.gyerekei[1].NemÉs());
+				return null;
+			}
+
 			/// <summary>
 			/// Visszaadja, hogy hányszor tagadták benne a megadott műveletet. Például
 			/// Tagadott('&') azt adja vissza, hogy hányszor volt konjunkció tagadva benne.
@@ -148,10 +170,113 @@ namespace _23f_formulafa
 
 			//}
 
+			public static bool Kielégíthető(HashSet<Formula> formulahalmaz)
+			{
+				Stack<Formula> formulaverem = new Stack<Formula>();
+				foreach (Formula formula in formulahalmaz)
+				{
+					formulaverem.Push(formula.NemÉs());
+				}
+
+				Analitikus_fa fa = new Analitikus_fa(formulaverem);
+				return fa.kielégíthető;
+			}
+
+			public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
+
+			public static bool Logikai_igazság(Formula formula) => Ellentmondásos(new HashSet<Formula> { -formula });
 
 
 
 		}
+
+		class Analitikus_fa
+		{
+			public bool kielégíthető;
+			public List<Analitikus_fa> gyerekei;
+			public Stack<Formula> gyökér;
+
+
+			public Analitikus_fa(Stack<Formula> formulahalmaz)
+			{
+
+				this.gyökér = formulahalmaz;
+				this.gyerekei = new List<Analitikus_fa> { };
+				
+				if (formulahalmaz.Count == 0)
+				{
+					this.kielégíthető = false;
+					return;
+				}
+				Formula teteje = formulahalmaz.Pop();
+
+				// összes lehetőség:
+				// - atomi formulával van dolgunk
+				// - &-es formula
+				// - tagadott &-es formula
+
+				if (teteje.gyerekei.Count == 0)
+				{
+					Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
+					this.kielégíthető = this.gyerekei[0].kielégíthető;
+				}
+				else if (teteje.művelet=='¬')
+				{
+					Formula gyerek = teteje.gyerekei[0];
+
+					if (gyerek.gyerekei.Count == 0)
+					{
+						// ha tagadott atomi formulával állunk szemben: "-p"
+						Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
+						this.kielégíthető = this.gyerekei[0].kielégíthető;
+					}
+					else if (gyerek.művelet == '¬')
+					{
+						// ha a tagadáson belül tagadás van: "--p" származékai
+						Formula unoka = gyerek.gyerekei[0];
+						Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+						kov_formulahalmaz.Push(unoka);
+						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
+						this.kielégíthető = this.gyerekei[0].kielégíthető;
+					}
+					else if (gyerek.művelet == '&')
+					{
+						// ha a tagadáson belül & van: "-(p&q)" származékai
+						Formula balunoka = -gyerek.gyerekei[0];
+						Formula jobbunoka = -gyerek.gyerekei[1];
+
+						Stack<Formula> bal_formulahalmaz = new Stack<Formula>(formulahalmaz);
+						bal_formulahalmaz.Push(balunoka);
+						Stack<Formula> jobb_formulahalmaz = new Stack<Formula>(formulahalmaz);
+						jobb_formulahalmaz.Push(jobbunoka);
+						this.gyerekei.Add(new Analitikus_fa(bal_formulahalmaz));
+						this.gyerekei.Add(new Analitikus_fa(jobb_formulahalmaz));
+						this.kielégíthető = this.gyerekei[0].kielégíthető || this.gyerekei[1].kielégíthető;
+					}
+
+				}
+				else if (teteje.művelet == '&')
+				{
+					Formula bal = teteje.gyerekei[0];
+					Formula jobb = teteje.gyerekei[1];
+
+					Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+					kov_formulahalmaz.Push(bal);
+					kov_formulahalmaz.Push(jobb);
+
+					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
+
+
+					this.kielégíthető = this.gyerekei[0].kielégíthető;
+				}
+
+
+			}
+		}
+
+
 
 		static void Main(string[] args)
 		{
@@ -169,6 +294,14 @@ namespace _23f_formulafa
 
 			Console.WriteLine(B.Műveletek_száma('¬'));
 
+			Console.WriteLine("B:");
+			Console.WriteLine(B);
+			Console.WriteLine("csak éssel és negációval kifejezve:");
+
+			
+			Console.WriteLine(B.NemÉs());
+
+			Console.WriteLine(Formula.Kielégíthető(new HashSet<Formula> { B, r, p_es_q }));
 
 		}
 	}
