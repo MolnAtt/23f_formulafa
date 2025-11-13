@@ -130,6 +130,12 @@ namespace _23f_formulafa
 			}
 
 			/// <summary>
+			/// Literálnak nevezzük az atomi formulákat vagy azok tagadásait.
+			/// </summary>
+			/// <returns></returns>
+			public bool Literál() => Atomi() || (művelet == '¬' && this.gyerekei[0].Atomi());
+
+			/// <summary>
 			/// Visszaadja, hogy hányszor tagadták benne a megadott műveletet. Például
 			/// Tagadott('&') azt adja vissza, hogy hányszor volt konjunkció tagadva benne.
 			/// Tagadott('V') azt adja vissza, hogy hányszor volt diszjunkció tagadva benne.
@@ -172,21 +178,24 @@ namespace _23f_formulafa
 
 			public static bool Kielégíthető(HashSet<Formula> formulahalmaz)
 			{
+				HashSet<Formula> literálok = new HashSet<Formula>();
 				Stack<Formula> formulaverem = new Stack<Formula>();
 				foreach (Formula formula in formulahalmaz)
 				{
 					formulaverem.Push(formula.NemÉs());
+					if (formula.Literál())
+					{
+						literálok.Add(formula);
+					}
 				}
 
-				Analitikus_fa fa = new Analitikus_fa(formulaverem);
+				Analitikus_fa fa = new Analitikus_fa(formulaverem, literálok);
 				return fa.kielégíthető;
 			}
 
 			public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
 
 			public static bool Logikai_igazság(Formula formula) => Ellentmondásos(new HashSet<Formula> { -formula });
-
-
 
 		}
 
@@ -195,42 +204,79 @@ namespace _23f_formulafa
 			public bool kielégíthető;
 			public List<Analitikus_fa> gyerekei;
 			public Stack<Formula> gyökér;
-
-
-			public Analitikus_fa(Stack<Formula> formulahalmaz)
+			public override string ToString()
 			{
+				string s = "";
+				string gyokerstr = string.Join("\\n", gyökér);
 
-				this.gyökér = formulahalmaz;
+				foreach (Analitikus_fa gyerek in gyerekei)
+				{
+					s += gyokerstr + " -> " + gyerek.ToString() +";\n";
+				}
+
+				s += kielégíthető ? "O" : "*";
+
+				return s;
+			}
+
+			public Analitikus_fa(Stack<Formula> formulahalmaz, HashSet<Formula> literálok)
+			{
+				this.gyökér = formulahalmaz; // kell-e?
 				this.gyerekei = new List<Analitikus_fa> { };
-				
+				HashSet<Formula> továbbadott_literálok = new HashSet<Formula>(literálok);
+
 				if (formulahalmaz.Count == 0)
 				{
 					this.kielégíthető = false;
 					return;
 				}
+
 				Formula teteje = formulahalmaz.Pop();
 
-				// összes lehetőség:
+				// összes lehetőség, tekintve, hogy ide csak akkor jutunk, ha már &-re és tagadásra átírtuk az egész formulát!
 				// - atomi formulával van dolgunk
+				// - tagadott valamilyen formulával van dolgunk
+				//   - tagadott atomi formula
+				//   - duplán tagadott formula
+				//   - tagadott &-es formula
 				// - &-es formula
-				// - tagadott &-es formula
 
-				if (teteje.gyerekei.Count == 0)
+				if (teteje.Atomi())
 				{
-					Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
-					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
-					this.kielégíthető = this.gyerekei[0].kielégíthető;
+					// ha atomi formulával állunk szemben
+
+					if (literálok.Contains(-teteje)) // ha találunk ellentmondást, akkor vége a kisebb fákra való szétbontásnak.
+					{
+						this.kielégíthető = false;
+					}
+					else 
+					{
+						Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+						továbbadott_literálok.Add(teteje);
+						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz, továbbadott_literálok));
+						this.kielégíthető = this.gyerekei[0].kielégíthető;
+					}
+
 				}
 				else if (teteje.művelet=='¬')
 				{
+					// ha tagadott valamilyen formulával állunk szemben... lásd lejjebb
 					Formula gyerek = teteje.gyerekei[0];
 
-					if (gyerek.gyerekei.Count == 0)
+					if (gyerek.Atomi())
 					{
 						// ha tagadott atomi formulával állunk szemben: "-p"
-						Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
-						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
-						this.kielégíthető = this.gyerekei[0].kielégíthető;
+						if (literálok.Contains(gyerek))  // ezt most nem kell tagadni, mert teteje az, ami tagadott, tehát ha annak a gyereke ott van a literálhalmazban, akkor a teteje ellentmond neki!
+						{
+							this.kielégíthető = false;
+						}
+						else
+						{
+							Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
+							továbbadott_literálok.Add(teteje); 
+							this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz, továbbadott_literálok));
+							this.kielégíthető = this.gyerekei[0].kielégíthető;
+						}
 					}
 					else if (gyerek.művelet == '¬')
 					{
@@ -238,7 +284,7 @@ namespace _23f_formulafa
 						Formula unoka = gyerek.gyerekei[0];
 						Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
 						kov_formulahalmaz.Push(unoka);
-						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
+						this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz, továbbadott_literálok));
 						this.kielégíthető = this.gyerekei[0].kielégíthető;
 					}
 					else if (gyerek.művelet == '&')
@@ -249,16 +295,19 @@ namespace _23f_formulafa
 
 						Stack<Formula> bal_formulahalmaz = new Stack<Formula>(formulahalmaz);
 						bal_formulahalmaz.Push(balunoka);
+						
 						Stack<Formula> jobb_formulahalmaz = new Stack<Formula>(formulahalmaz);
 						jobb_formulahalmaz.Push(jobbunoka);
-						this.gyerekei.Add(new Analitikus_fa(bal_formulahalmaz));
-						this.gyerekei.Add(new Analitikus_fa(jobb_formulahalmaz));
+
+						this.gyerekei.Add(new Analitikus_fa(bal_formulahalmaz, továbbadott_literálok));
+						this.gyerekei.Add(new Analitikus_fa(jobb_formulahalmaz, továbbadott_literálok));
 						this.kielégíthető = this.gyerekei[0].kielégíthető || this.gyerekei[1].kielégíthető;
 					}
 
 				}
 				else if (teteje.művelet == '&')
 				{
+					// Ha konjunkcióval állunk szemben
 					Formula bal = teteje.gyerekei[0];
 					Formula jobb = teteje.gyerekei[1];
 
@@ -266,12 +315,11 @@ namespace _23f_formulafa
 					kov_formulahalmaz.Push(bal);
 					kov_formulahalmaz.Push(jobb);
 
-					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz));
-
+					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz, továbbadott_literálok));
 
 					this.kielégíthető = this.gyerekei[0].kielégíthető;
 				}
-
+				// több lehetőség nincs, mert ez az analitikus fa úgy hívódik majd meg, hogy a formula csak tagadást és konjunkciót tartalmaz majd.
 
 			}
 		}
