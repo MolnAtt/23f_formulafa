@@ -8,33 +8,38 @@ namespace _23f_formulafa
 {
 	class Analitikus_fa
 	{
+		Stack<Formula> formulahalmaz;
+		List<Analitikus_fa> gyerekei;
+		HashSet<Formula> pozitív_literálok;
+		HashSet<Formula> negatív_literálok;
 		public bool kielégíthető;
-		public List<Analitikus_fa> gyerekei;
-		public Stack<Formula> gyökér;
+		HashSet<HashSet<Formula>> modell;
 		public override string ToString()
 		{
 			string s = "";
-			string gyokerstr = string.Join("\\n", gyökér);
-
+			string gyokerstr = string.Join("\\n", formulahalmaz);
 			foreach (Analitikus_fa gyerek in gyerekei)
-			{
 				s += gyokerstr + " -> " + gyerek.ToString() + ";\n";
-			}
-
-			s += kielégíthető ? "O" : "*";
-
-			return s;
+			return s + (kielégíthető ? "O" : "*");
 		}
-
-		public Analitikus_fa(Stack<Formula> formulahalmaz, HashSet<Formula> literálok)
+		public Analitikus_fa(Stack<Formula> formulahalmaz, List<Analitikus_fa> gyerekei, HashSet<Formula> pozitív_literálok, HashSet<Formula> negatív_literálok, bool kielégíthető, HashSet<HashSet<Formula>> modell)
 		{
-			this.gyökér = formulahalmaz; // kell-e?
+			this.formulahalmaz = formulahalmaz;
+			this.gyerekei = gyerekei;
+			this.pozitív_literálok = pozitív_literálok;
+			this.negatív_literálok = negatív_literálok;
+			this.kielégíthető = kielégíthető;
+			this.modell = modell;
+		}
+		public Analitikus_fa(Stack<Formula> formulahalmaz, HashSet<Formula> pozitív_literálok, HashSet<Formula> negatív_literálok)
+		{
+			this.formulahalmaz = formulahalmaz;
 			this.gyerekei = new List<Analitikus_fa> { };
-			HashSet<Formula> továbbadott_literálok = new HashSet<Formula>(literálok);
-
+			this.pozitív_literálok = pozitív_literálok;
+			this.negatív_literálok = negatív_literálok;
 			if (formulahalmaz.Count == 0)
 			{
-				this.kielégíthető = false;
+				this.kielégíthető = true;
 				return;
 			}
 
@@ -51,16 +56,21 @@ namespace _23f_formulafa
 			if (teteje.Atomi())
 			{
 				// ha atomi formulával állunk szemben
-
-				if (literálok.Contains(-teteje)) // ha találunk ellentmondást, akkor vége a kisebb fákra való szétbontásnak.
+				if (negatív_literálok.Contains(-teteje)) // ha találunk ellentmondást, akkor vége a kisebb fákra való szétbontásnak.
 				{
 					this.kielégíthető = false;
+					this.modell = null;
 				}
 				else
 				{
-					Stack<Formula> kov_formulahalmaz = new Stack<Formula>(formulahalmaz);
-					továbbadott_literálok.Add(teteje);
-					this.gyerekei.Add(new Analitikus_fa(kov_formulahalmaz, továbbadott_literálok));
+					pozitív_literálok.Add(teteje);
+
+					this.gyerekei.Add(new Analitikus_fa(
+						new Stack<Formula>(formulahalmaz),
+						new HashSet<Formula>(pozitív_literálok), 
+						new HashSet<Formula>(negatív_literálok),
+
+						));
 					this.kielégíthető = this.gyerekei[0].kielégíthető;
 				}
 

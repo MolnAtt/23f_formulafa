@@ -169,21 +169,30 @@ namespace _23f_formulafa
 
 		//}
 
-		public static bool Kielégíthető(HashSet<Formula> formulahalmaz)
+		public static (bool, HashSet<HashSet<Formula>>) Kielégíthető(HashSet<Formula> formulahalmaz)
 		{
-			HashSet<Formula> literálok = new HashSet<Formula>();
 			Stack<Formula> formulaverem = new Stack<Formula>();
 			foreach (Formula formula in formulahalmaz)
-			{
-				formulaverem.Push(formula.NemÉs());
-				if (formula.Literál())
-				{
-					literálok.Add(formula);
-				}
-			}
+				formulaverem.Push(formula);
 
-			Analitikus_fa fa = new Analitikus_fa(formulaverem, literálok);
-			return fa.kielégíthető;
+			HashSet<HashSet<Formula>> Modellek = new HashSet<HashSet<Formula>>();
+
+			SemanticTableaux(
+				formulaverem,
+				new HashSet<Formula>(),
+				new HashSet<Formula>(),
+				Modellek);
+
+			return (Modellek == null || Modellek.Count == 0) ? (false, null) : (true, Modellek);
+		}
+
+		static void SemanticTableaux(
+			Stack<Formula> formulaverem,
+			HashSet<Formula> pozitiv_literalok,
+			HashSet<Formula> negativ_literalok,
+			HashSet<HashSet<Formula>> modellek)
+		{
+
 		}
 
 		public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
