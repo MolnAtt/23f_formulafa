@@ -181,7 +181,7 @@ namespace _23f_formulafa
 
 			HashSet<Dictionary<Formula, bool>> Modellek = new HashSet<Dictionary<Formula, bool>>();
 
-			bool nyitott = SemanticTableaux(
+			bool nyitott = AnFa(
 				formulák,
 				new HashSet<Formula>(),
 				new HashSet<Formula>(),
@@ -190,7 +190,7 @@ namespace _23f_formulafa
 			return (nyitott, Modellek);
 		}
 
-		static Dictionary<Formula, bool> Modell_építése_literálokból(HashSet<Formula> pozitív_literálok, HashSet<Formula> negatív_literálok)
+		static Dictionary<Formula, bool> Értékelés_literálokból(HashSet<Formula> pozitív_literálok, HashSet<Formula> negatív_literálok)
 		{
 			Dictionary<Formula, bool> értékelés = new Dictionary<Formula, bool>();
 			foreach (Formula atom in pozitív_literálok)
@@ -200,16 +200,16 @@ namespace _23f_formulafa
 			return értékelés;
 		}
 
-		static bool SemanticTableaux(
+		static bool AnFa(
 			Popper<Formula> formulák,
-			HashSet<Formula> pozitiv_literalok,
-			HashSet<Formula> negativ_literalok,
-			HashSet<Dictionary<Formula, bool>> modellek)
+			HashSet<Formula> po,
+			HashSet<Formula> ne,
+			HashSet<Dictionary<Formula, bool>> értékelések)
 		{
 			// Ha üres a verem
 			if (formulák.Count == 0)
 			{
-				modellek.Add(Modell_építése_literálokból(pozitiv_literalok, negativ_literalok));
+				értékelések.Add(Értékelés_literálokból(po, ne));
 				return true;
 			}
 
@@ -217,78 +217,78 @@ namespace _23f_formulafa
 
 			if (f.Atomi())
 			{
-				if (negativ_literalok.Contains(-f))
+				if (ne.Contains(-f))
 					return false;
-				pozitiv_literalok.Add(f);
-				return SemanticTableaux(
+				po.Add(f);
+				return AnFa(
 					new Popper<Formula>(formulák),
-					new HashSet<Formula>(pozitiv_literalok),
-					new HashSet<Formula>(negativ_literalok),
-					modellek
+					new HashSet<Formula>(po),
+					new HashSet<Formula>(ne),
+					értékelések
 					);
 			}
 			if (f.Negatív_literál())
 			{
-				if (pozitiv_literalok.Contains(f.gyerekei[0]))
+				if (po.Contains(f.gyerekei[0]))
 					return false;
-				negativ_literalok.Add(f);
-				return SemanticTableaux(
+				ne.Add(f);
+				return AnFa(
 					new Popper<Formula>(formulák),
-					new HashSet<Formula>(pozitiv_literalok),
-					new HashSet<Formula>(negativ_literalok),
-					modellek
+					new HashSet<Formula>(po),
+					new HashSet<Formula>(ne),
+					értékelések
 					);
 			}
 
 			// ... a formula nem tagadott
 
 			if (f.művelet == '&')
-				return SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				return AnFa((f.bal, f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			if (f.művelet == 'V')
 				return 
-					SemanticTableaux(f.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					AnFa(f.bal + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 					|
-					SemanticTableaux(f.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					AnFa(f.jobb + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			if (f.művelet == '>')
 				return
-					SemanticTableaux(-f.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					AnFa(-f.bal + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 					|
-					SemanticTableaux(f.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					AnFa(f.jobb + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			if (f.művelet == '=')
 				return
-					SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					AnFa((f.bal, f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 					|
-					SemanticTableaux((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					AnFa((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			if (f.művelet == '⨂')
 				return
-					SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					AnFa((f.bal, -f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 					|
-					SemanticTableaux((-f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					AnFa((-f.bal, f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			// ... a formula tagadott
 			if (f.művelet == '¬')
 			{
 				Formula tf = f.gyerekei[0];
 				if (tf.művelet == '¬')
-					return SemanticTableaux(tf.bal+formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					return AnFa(tf.bal+formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
                 if (tf.művelet == '&')
 					return
-						SemanticTableaux(-tf.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						AnFa(-tf.bal + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 						|
-						SemanticTableaux(-tf.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+						AnFa(-tf.jobb + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 				if (tf.művelet == 'V')
-					return SemanticTableaux((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					return AnFa((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 				if (tf.művelet == '>')
-					return SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+					return AnFa((f.bal, -f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 				if (tf.művelet == '=')
 					return
-						SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						AnFa((f.bal, -f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 						|
-						SemanticTableaux((-f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+						AnFa((-f.bal, f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 				if (tf.művelet == '⨂')
 					return
-						SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						AnFa((f.bal, f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések)
 						|
-						SemanticTableaux((-f.bal,-f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+						AnFa((-f.bal,-f.jobb) + formulák, new HashSet<Formula>(po), new HashSet<Formula>(ne), értékelések);
 			}
 			throw new NotImplementedException($"Ez a konnektívum nincs implementálva: {f.művelet}");
 		}
