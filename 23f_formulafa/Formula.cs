@@ -22,6 +22,8 @@ namespace _23f_formulafa
 			this.gyerekei = gyerekei;
 		}
 
+		public Formula bal => this.gyerekei[0];
+		public Formula jobb => this.gyerekei[1];
 
 		public static Formula operator *(Formula A, Formula B) => new Formula('&', new List<Formula> { A, B });
 		public static Formula operator +(Formula A, Formula B) => new Formula('V', new List<Formula> { A, B });
@@ -173,14 +175,14 @@ namespace _23f_formulafa
 
 		public static (bool, HashSet<Dictionary<Formula, bool>>) Kielégíthető(HashSet<Formula> formulahalmaz)
 		{
-			Stack<Formula> formulaverem = new Stack<Formula>();
+			Popper<Formula> formulák = new Popper<Formula>();
 			foreach (Formula formula in formulahalmaz)
-				formulaverem.Push(formula);
+				formulák.Push(formula);
 
 			HashSet<Dictionary<Formula, bool>> Modellek = new HashSet<Dictionary<Formula, bool>>();
 
 			bool nyitott = SemanticTableaux(
-				formulaverem,
+				formulák,
 				new HashSet<Formula>(),
 				new HashSet<Formula>(),
 				Modellek);
@@ -199,39 +201,39 @@ namespace _23f_formulafa
 		}
 
 		static bool SemanticTableaux(
-			Stack<Formula> formulaverem,
+			Popper<Formula> formulák,
 			HashSet<Formula> pozitiv_literalok,
 			HashSet<Formula> negativ_literalok,
 			HashSet<Dictionary<Formula, bool>> modellek)
 		{
 			// Ha üres a verem
-			if (formulaverem.Count == 0)
+			if (formulák.Count == 0)
 			{
 				modellek.Add(Modell_építése_literálokból(pozitiv_literalok, negativ_literalok));
 				return true;
 			}
 
-			Formula formula = formulaverem.Pop();
+			Formula f = formulák.Pop();
 
-			if (formula.Atomi())
+			if (f.Atomi())
 			{
-				if (negativ_literalok.Contains(-formula))
+				if (negativ_literalok.Contains(-f))
 					return false;
-				pozitiv_literalok.Add(formula);
+				pozitiv_literalok.Add(f);
 				return SemanticTableaux(
-					new Stack<Formula>(formulaverem),
+					new Popper<Formula>(formulák),
 					new HashSet<Formula>(pozitiv_literalok),
 					new HashSet<Formula>(negativ_literalok),
 					modellek
 					);
 			}
-			if (formula.Negatív_literál())
+			if (f.Negatív_literál())
 			{
-				if (pozitiv_literalok.Contains(formula.gyerekei[0]))
+				if (pozitiv_literalok.Contains(f.gyerekei[0]))
 					return false;
-				negativ_literalok.Add(formula);
+				negativ_literalok.Add(f);
 				return SemanticTableaux(
-					new Stack<Formula>(formulaverem),
+					new Popper<Formula>(formulák),
 					new HashSet<Formula>(pozitiv_literalok),
 					new HashSet<Formula>(negativ_literalok),
 					modellek
@@ -240,125 +242,58 @@ namespace _23f_formulafa
 
 			// ... a formula nem tagadott
 
-			if (formula.művelet == '&')
+			if (f.művelet == '&')
+				return SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			if (f.művelet == 'V')
+				return 
+					SemanticTableaux(f.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					|
+					SemanticTableaux(f.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			if (f.művelet == '>')
+				return
+					SemanticTableaux(-f.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					|
+					SemanticTableaux(f.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			if (f.művelet == '=')
+				return
+					SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					|
+					SemanticTableaux((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			if (f.művelet == '⨂')
+				return
+					SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+					|
+					SemanticTableaux((-f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			// ... a formula tagadott
+			if (f.művelet == '¬')
 			{
-				formulaverem.Push(formula.gyerekei[0]);
-				formulaverem.Push(formula.gyerekei[1]);
-				return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				Formula tf = f.gyerekei[0];
+				if (tf.művelet == '¬')
+					return SemanticTableaux(tf.bal+formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+                if (tf.művelet == '&')
+					return
+						SemanticTableaux(-tf.bal + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						|
+						SemanticTableaux(-tf.jobb + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				if (tf.művelet == 'V')
+					return SemanticTableaux((-f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				if (tf.művelet == '>')
+					return SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				if (tf.művelet == '=')
+					return
+						SemanticTableaux((f.bal, -f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						|
+						SemanticTableaux((-f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				if (tf.művelet == '⨂')
+					return
+						SemanticTableaux((f.bal, f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek)
+						|
+						SemanticTableaux((-f.bal,-f.jobb) + formulák, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
 			}
-			if (formula.művelet == 'V')
-			{
-				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-				balverem.Push(formula.gyerekei[0]);
-				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-				jobbverem.Push(formula.gyerekei[1]);
-				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				return bal_ag_nyitott || jobb_ag_nyitott;
-			}
-			if (formula.művelet == '>')
-			{
-				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-				balverem.Push(-formula.gyerekei[0]);
-				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-				jobbverem.Push(formula.gyerekei[1]);
-				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				return bal_ag_nyitott || jobb_ag_nyitott;
-			}
-
-			if (formula.művelet == '=')
-			{
-				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-				balverem.Push(formula.gyerekei[0]);
-				balverem.Push(formula.gyerekei[1]);
-				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-				jobbverem.Push(-formula.gyerekei[0]);
-				jobbverem.Push(-formula.gyerekei[1]);
-				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				return bal_ag_nyitott || jobb_ag_nyitott;
-			}
-			if (formula.művelet == '⨂')
-			{
-				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-				balverem.Push(formula.gyerekei[0]);
-				balverem.Push(-formula.gyerekei[1]);
-				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-				jobbverem.Push(-formula.gyerekei[0]);
-				jobbverem.Push(formula.gyerekei[1]);
-				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-				return bal_ag_nyitott || jobb_ag_nyitott;
-			}
-
-			if (formula.művelet == '-')
-			{
-				Formula tagadott_formula = formula.gyerekei[0];
-				if (tagadott_formula.művelet == '¬')
-				{
-					formulaverem.Push(tagadott_formula.gyerekei[0]);
-					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-				}
-                if (tagadott_formula.művelet == '&')
-                {
-                    
-                }
-				if (tagadott_formula.művelet == 'V')
-				{
-					formulaverem.Push(-formula.gyerekei[0]);
-					formulaverem.Push(-formula.gyerekei[1]);
-					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-				}
-				if (tagadott_formula.művelet == '>')
-				{
-					formulaverem.Push(formula.gyerekei[0]);
-					formulaverem.Push(-formula.gyerekei[1]);
-					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-				}
-				if (tagadott_formula.művelet == '=')
-				{
-					Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-					balverem.Push(tagadott_formula.gyerekei[0]);
-					balverem.Push(-tagadott_formula.gyerekei[1]);
-					bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-					Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-					jobbverem.Push(-tagadott_formula.gyerekei[0]);
-					jobbverem.Push(tagadott_formula.gyerekei[1]);
-					bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-					return bal_ag_nyitott || jobb_ag_nyitott;
-				}
-				if (tagadott_formula.művelet == '⨂')
-				{
-					Stack<Formula> balverem = new Stack<Formula>(formulaverem);
-					balverem.Push(tagadott_formula.gyerekei[0]);
-					balverem.Push(tagadott_formula.gyerekei[1]);
-					bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-					Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
-					jobbverem.Push(-tagadott_formula.gyerekei[0]);
-					jobbverem.Push(-tagadott_formula.gyerekei[1]);
-					bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
-
-					return bal_ag_nyitott || jobb_ag_nyitott;
-				}
-
-			}
-			throw new NotImplementedException($"Ez a konnektívum nincs implementálva: {formula.művelet}");
-
+			throw new NotImplementedException($"Ez a konnektívum nincs implementálva: {f.művelet}");
 		}
 
-		public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
+		public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz).Item1;
 
 		public static bool Logikai_igazság(Formula formula) => Ellentmondásos(new HashSet<Formula> { -formula });
 

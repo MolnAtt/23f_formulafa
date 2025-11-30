@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="AnalitikusFa.cs" />
     <Compile Include="Formula.cs" />
+    <Compile Include="Popper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
