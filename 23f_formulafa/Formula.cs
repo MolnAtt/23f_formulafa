@@ -238,20 +238,124 @@ namespace _23f_formulafa
 					);
 			}
 
-			// ... a formula konjunkció
-			if (formula.művelet=='&')
+			// ... a formula nem tagadott
+
+			if (formula.művelet == '&')
 			{
+				formulaverem.Push(formula.gyerekei[0]);
+				formulaverem.Push(formula.gyerekei[1]);
+				return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+			}
+			if (formula.művelet == 'V')
+			{
+				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+				balverem.Push(formula.gyerekei[0]);
+				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+				jobbverem.Push(formula.gyerekei[1]);
+				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				return bal_ag_nyitott || jobb_ag_nyitott;
+			}
+			if (formula.művelet == '>')
+			{
+				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+				balverem.Push(-formula.gyerekei[0]);
+				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+				jobbverem.Push(formula.gyerekei[1]);
+				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				return bal_ag_nyitott || jobb_ag_nyitott;
+			}
+
+			if (formula.művelet == '=')
+			{
+				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+				balverem.Push(formula.gyerekei[0]);
+				balverem.Push(formula.gyerekei[1]);
+				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+				jobbverem.Push(-formula.gyerekei[0]);
+				jobbverem.Push(-formula.gyerekei[1]);
+				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				return bal_ag_nyitott || jobb_ag_nyitott;
+			}
+			if (formula.művelet == '⨂')
+			{
+				Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+				balverem.Push(formula.gyerekei[0]);
+				balverem.Push(-formula.gyerekei[1]);
+				bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+				jobbverem.Push(-formula.gyerekei[0]);
+				jobbverem.Push(formula.gyerekei[1]);
+				bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+				return bal_ag_nyitott || jobb_ag_nyitott;
+			}
+
+			if (formula.művelet == '-')
+			{
+				Formula tagadott_formula = formula.gyerekei[0];
+				if (tagadott_formula.művelet == '¬')
+				{
+					formulaverem.Push(tagadott_formula.gyerekei[0]);
+					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				}
+                if (tagadott_formula.művelet == '&')
+                {
+                    
+                }
+				if (tagadott_formula.művelet == 'V')
+				{
+					formulaverem.Push(-formula.gyerekei[0]);
+					formulaverem.Push(-formula.gyerekei[1]);
+					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				}
+				if (tagadott_formula.művelet == '>')
+				{
+					formulaverem.Push(formula.gyerekei[0]);
+					formulaverem.Push(-formula.gyerekei[1]);
+					return SemanticTableaux(new Stack<Formula>(formulaverem), new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+				}
+				if (tagadott_formula.művelet == '=')
+				{
+					Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+					balverem.Push(tagadott_formula.gyerekei[0]);
+					balverem.Push(-tagadott_formula.gyerekei[1]);
+					bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+					Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+					jobbverem.Push(-tagadott_formula.gyerekei[0]);
+					jobbverem.Push(tagadott_formula.gyerekei[1]);
+					bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+					return bal_ag_nyitott || jobb_ag_nyitott;
+				}
+				if (tagadott_formula.művelet == '⨂')
+				{
+					Stack<Formula> balverem = new Stack<Formula>(formulaverem);
+					balverem.Push(tagadott_formula.gyerekei[0]);
+					balverem.Push(tagadott_formula.gyerekei[1]);
+					bool bal_ag_nyitott = SemanticTableaux(balverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+					Stack<Formula> jobbverem = new Stack<Formula>(formulaverem);
+					jobbverem.Push(-tagadott_formula.gyerekei[0]);
+					jobbverem.Push(-tagadott_formula.gyerekei[1]);
+					bool jobb_ag_nyitott = SemanticTableaux(jobbverem, new HashSet<Formula>(pozitiv_literalok), new HashSet<Formula>(negativ_literalok), modellek);
+
+					return bal_ag_nyitott || jobb_ag_nyitott;
+				}
 
 			}
-			// ... a formula diszjunkció
-			// ... a formula implicáció
-			// ... a formula ekvivalencia
-			// ... a formula tagadott...
-			// ... tagadás
-			// ... konjunkció
-			// ... diszjunkció
-			// ... implicáció
-			// ... ekvivalencia
+			throw new NotImplementedException($"Ez a konnektívum nincs implementálva: {formula.művelet}");
+
 		}
 
 		public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
