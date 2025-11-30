@@ -122,6 +122,8 @@ namespace _23f_formulafa
 			return null;
 		}
 
+		public bool Negatív_literál() => művelet == '¬' && this.gyerekei[0].Atomi();
+
 		/// <summary>
 		/// Literálnak nevezzük az atomi formulákat vagy azok tagadásait.
 		/// </summary>
@@ -169,30 +171,87 @@ namespace _23f_formulafa
 
 		//}
 
-		public static (bool, HashSet<HashSet<Formula>>) Kielégíthető(HashSet<Formula> formulahalmaz)
+		public static (bool, HashSet<Dictionary<Formula, bool>>) Kielégíthető(HashSet<Formula> formulahalmaz)
 		{
 			Stack<Formula> formulaverem = new Stack<Formula>();
 			foreach (Formula formula in formulahalmaz)
 				formulaverem.Push(formula);
 
-			HashSet<HashSet<Formula>> Modellek = new HashSet<HashSet<Formula>>();
+			HashSet<Dictionary<Formula, bool>> Modellek = new HashSet<Dictionary<Formula, bool>>();
 
-			SemanticTableaux(
+			bool nyitott = SemanticTableaux(
 				formulaverem,
 				new HashSet<Formula>(),
 				new HashSet<Formula>(),
 				Modellek);
 
-			return (Modellek == null || Modellek.Count == 0) ? (false, null) : (true, Modellek);
+			return (nyitott, Modellek);
 		}
 
-		static void SemanticTableaux(
+		static Dictionary<Formula, bool> Modell_építése_literálokból(HashSet<Formula> pozitív_literálok, HashSet<Formula> negatív_literálok)
+		{
+			Dictionary<Formula, bool> értékelés = new Dictionary<Formula, bool>();
+			foreach (Formula atom in pozitív_literálok)
+				értékelés[atom] = true;
+			foreach (Formula negatív_literál in negatív_literálok)
+				értékelés[negatív_literál.gyerekei[0]] = false;
+			return értékelés;
+		}
+
+		static bool SemanticTableaux(
 			Stack<Formula> formulaverem,
 			HashSet<Formula> pozitiv_literalok,
 			HashSet<Formula> negativ_literalok,
-			HashSet<HashSet<Formula>> modellek)
+			HashSet<Dictionary<Formula, bool>> modellek)
 		{
+			// Ha üres a verem
+			if (formulaverem.Count == 0)
+			{
+				modellek.Add(Modell_építése_literálokból(pozitiv_literalok, negativ_literalok));
+				return true;
+			}
 
+			Formula formula = formulaverem.Pop();
+
+			if (formula.Atomi())
+			{
+				if (negativ_literalok.Contains(-formula))
+					return false;
+				pozitiv_literalok.Add(formula);
+				return SemanticTableaux(
+					new Stack<Formula>(formulaverem),
+					new HashSet<Formula>(pozitiv_literalok),
+					new HashSet<Formula>(negativ_literalok),
+					modellek
+					);
+			}
+			if (formula.Negatív_literál())
+			{
+				if (pozitiv_literalok.Contains(formula.gyerekei[0]))
+					return false;
+				negativ_literalok.Add(formula);
+				return SemanticTableaux(
+					new Stack<Formula>(formulaverem),
+					new HashSet<Formula>(pozitiv_literalok),
+					new HashSet<Formula>(negativ_literalok),
+					modellek
+					);
+			}
+
+			// ... a formula konjunkció
+			if (formula.művelet=='&')
+			{
+
+			}
+			// ... a formula diszjunkció
+			// ... a formula implicáció
+			// ... a formula ekvivalencia
+			// ... a formula tagadott...
+			// ... tagadás
+			// ... konjunkció
+			// ... diszjunkció
+			// ... implicáció
+			// ... ekvivalencia
 		}
 
 		public static bool Ellentmondásos(HashSet<Formula> formulahalmaz) => !Kielégíthető(formulahalmaz);
